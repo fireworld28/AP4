@@ -10,85 +10,122 @@ $machines = $reqMach->fetchAll(\PDO::FETCH_UNIQUE|\PDO::FETCH_ASSOC);
 $reqMat = $connexion->query('SELECT * FROM MATERIEL');
 $materiels = $reqMat->fetchAll(\PDO::FETCH_ASSOC);
 
-// 3. ON FUSIONNE : On ajoute les machines à la liste d'affichage
+// 3. On fusionne : on ajoute les machines à la liste d'affichage
 $affichage_complet = [];
 
-// On ajoute d'abord les machines principales
 foreach ($machines as $id => $m) {
     $affichage_complet[] = [
-            'id' => $id,
-            'nom' => $m['nom_mach'],
-            'annee' => $m['anne_mach'],
-            'details' => $m['det_mach'],
-            'type' => $m['typ_mach'],
-            'parent' => null // C'est une machine principale
+        'id'     => $id,
+        'nom'    => $m['nom_mach'],
+        'annee'  => $m['anne_mach'],
+        'details'=> $m['det_mach'],
+        'type'   => $m['typ_mach'],
+        'parent' => null
     ];
 }
 
-// Puis on ajoute le matériel
 foreach ($materiels as $m) {
     $affichage_complet[] = [
-            'id' => $m['id_mat'],
-            'nom' => $m['nom_mat'],
-            'annee' => $m['anne_mat'],
-            'details' => $m['det_mat'],
-            'type' => $m['typ_mat'],
-            'parent' => $m['id_mach_par']
+        'id'     => $m['id_mat'],
+        'nom'    => $m['nom_mat'],
+        'annee'  => $m['anne_mat'],
+        'details'=> $m['det_mat'],
+        'type'   => $m['typ_mat'],
+        'parent' => $m['id_mach_par']
     ];
 }
 
-// On trie par ID pour respecter l'ordre de ton image (1, 2, 3, 4, 10, etc.)
+// On trie par ID
 usort($affichage_complet, function($a, $b) {
     return $a['id'] <=> $b['id'];
 });
+
+// Fonction pour choisir la classe du badge selon le type
+function classeBadge(string $type): string {
+    $type = strtolower($type);
+    $correspondances = [
+        'pc'           => 'pc',
+        'écran'        => 'ecran',
+        'cpu'          => 'cpu',
+        'ram'          => 'ram',
+        'disque'       => 'disque',
+        'os'           => 'os',
+        'gpu'          => 'gpu',
+        'carte réseau' => 'reseau',
+        'batterie'     => 'batterie',
+    ];
+    return $correspondances[$type] ?? 'autre';
+}
 ?>
 
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventaire SI</title>
-    <style>
-        table { border-collapse: collapse; width: 90%; margin: 20px auto; } /* [cite: 5, 6] */
-        th, td { border: 1px solid #333; padding: 10px; text-align: left; } /* [cite: 6, 7] */
-        th { background-color: #eee; } /* [cite: 7, 8] */
-        .principal { background-color: #f9f9f9; font-weight: bold; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<table>
-    <thead>
-    <tr>
-        <th>ID</th>
-        <th>Nom</th>
-        <th>Année</th>
-        <th>Détails</th>
-        <th>Type (libellé)</th>
-        <th>Appartient à (nom du parent)</th>
-    </tr>
-    </thead>
-    <tbody>
-    <?php foreach ($affichage_complet as $item): ?>
-        <?php $est_principal = empty($item['parent']); ?>
-        <tr class="<?= $est_principal ? 'principal' : '' ?>">
-            <td><?= $item['id'] ?></td>
-            <td><?= htmlspecialchars($item['nom'] ?? '') ?></td>
-            <td><?= htmlspecialchars($item['annee'] ?? '') ?></td> <td><?= htmlspecialchars($item['details'] ?? '') ?></td>
-            <td><?= htmlspecialchars($item['type'] ?? '') ?></td>
-            <td>
-                <?php
-                if (!$est_principal && isset($machines[$item['parent']])) {
-                    echo htmlspecialchars($machines[$item['parent']]['nom_mach']);
-                } else {
-                    echo "—";
-                }
-                ?>
-            </td>
-        </tr>
-    <?php endforeach; ?>
-    </tbody>
-</table>
+    <header>
+        <h1> Inventaire du parc informatique</h1>
+        <p>Liste des machines et de leur matériel associé</p>
+    </header>
+
+    <div class="conteneur-tableau">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nom</th>
+                    <th>Année</th>
+                    <th>Détails</th>
+                    <th>Type</th>
+                    <th>Appartient à</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($affichage_complet as $item): ?>
+                    <?php $est_principal = empty($item['parent']); ?>
+                    <tr class="<?= $est_principal ? 'principal' : '' ?>">
+
+                        <td><?= $item['id'] ?></td>
+
+                        <td><?= htmlspecialchars($item['nom'] ?? '') ?></td>
+
+                        <td><?= htmlspecialchars($item['annee'] ?? '') ?></td>
+
+                        <td>
+                            <?php if (!empty($item['details'])): ?>
+                                <?= htmlspecialchars($item['details']) ?>
+                            <?php else: ?>
+                                <span class="vide">—</span>
+                            <?php endif; ?>
+                        </td>
+
+                        <td>
+                            <span class="badge <?= classeBadge($item['type'] ?? '') ?>">
+                                <?= htmlspecialchars($item['type'] ?? '') ?>
+                            </span>
+                        </td>
+
+                        <td>
+                            <?php if (!$est_principal && isset($machines[$item['parent']])): ?>
+                                <?= htmlspecialchars($machines[$item['parent']]['nom_mach']) ?>
+                            <?php else: ?>
+                                <span class="vide">—</span>
+                            <?php endif; ?>
+                        </td>
+
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <footer>
+        <p>AP4 — Inventaire SI &copy; <?= date('Y') ?></p>
+    </footer>
 
 </body>
 </html>
